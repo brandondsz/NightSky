@@ -15,6 +15,6 @@ import { StarCounter } from '@/components/Toolbar/StarCounter';
 describe('StarCounter', () => {
   it('displays current star count', () => {
     render(<StarCounter />);
-    expect(screen.getByText('42 / 200 stars')).toBeInTheDocument();
+    expect(screen.getByText('42 / 10 stars')).toBeInTheDocument();
   });
 });

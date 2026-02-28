@@ -41,6 +41,6 @@ describe('Toolbar', () => {
 
   it('shows star counter', () => {
     render(<Toolbar color="#FFFFFF" onColorChange={() => {}} error={null} />);
-    expect(screen.getByText('0 / 200 stars')).toBeInTheDocument();
+    expect(screen.getByText('0 / 10 stars')).toBeInTheDocument();
   });
 });
