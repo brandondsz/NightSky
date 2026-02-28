@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { normalizeShapeForPlacement, offsetShapeToPlacement } from '@/utils/normalizeShape';
+import { STAR_SKY_SCALE } from '@/utils/constants';
 
 describe('normalizeShapeForPlacement', () => {
   it('returns empty array for empty input', () => {
@@ -32,11 +33,11 @@ describe('normalizeShapeForPlacement', () => {
     ];
     const result = normalizeShapeForPlacement(points);
 
-    // Max extent from centroid is 0.2, scaled to 0.15
-    // So each point should be at +/- 0.15
+    // Max extent from centroid is 0.2, scaled to STAR_SKY_SCALE
+    // So each point should be at +/- STAR_SKY_SCALE
     for (const p of result) {
-      expect(Math.abs(p.x)).toBeCloseTo(0.15, 5);
-      expect(Math.abs(p.y)).toBeCloseTo(0.15, 5);
+      expect(Math.abs(p.x)).toBeCloseTo(STAR_SKY_SCALE, 5);
+      expect(Math.abs(p.y)).toBeCloseTo(STAR_SKY_SCALE, 5);
     }
   });
 
