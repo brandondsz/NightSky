@@ -12,35 +12,44 @@ vi.mock('@/hooks/useStarsContext', () => ({
 
 import { Toolbar } from '@/components/Toolbar/Toolbar';
 
+const defaultProps = {
+  onDrawStar: () => {},
+  isDrawingActive: false,
+  error: null,
+};
+
 describe('Toolbar', () => {
-  it('renders color swatches', () => {
-    render(<Toolbar color="#FFFFFF" onColorChange={() => {}} error={null} />);
-    const swatches = screen.getAllByRole('button');
-    expect(swatches.length).toBe(8);
-  });
-
-  it('marks active color', () => {
-    render(<Toolbar color="#FFD700" onColorChange={() => {}} error={null} />);
-    const active = document.querySelector('.color-swatch.active') as HTMLElement;
-    expect(active).toBeTruthy();
-    expect(active.style.backgroundColor).toBe('rgb(255, 215, 0)');
-  });
-
-  it('calls onColorChange when swatch clicked', () => {
-    const handleChange = vi.fn();
-    render(<Toolbar color="#FFFFFF" onColorChange={handleChange} error={null} />);
-    const swatches = screen.getAllByRole('button');
-    fireEvent.click(swatches[1]); // Second color
-    expect(handleChange).toHaveBeenCalledWith('#FFD700');
+  it('renders Draw Star button', () => {
+    render(<Toolbar {...defaultProps} />);
+    expect(screen.getByText('Draw Star')).toBeInTheDocument();
   });
 
   it('displays error message', () => {
-    render(<Toolbar color="#FFFFFF" onColorChange={() => {}} error="Rate limit!" />);
+    render(<Toolbar {...defaultProps} error="Rate limit!" />);
     expect(screen.getByText('Rate limit!')).toBeInTheDocument();
   });
 
   it('shows star counter', () => {
-    render(<Toolbar color="#FFFFFF" onColorChange={() => {}} error={null} />);
+    render(<Toolbar {...defaultProps} />);
     expect(screen.getByText('0 / 10 stars')).toBeInTheDocument();
+  });
+
+  it('calls onDrawStar when Draw Star button is clicked', () => {
+    const handleDrawStar = vi.fn();
+    render(<Toolbar {...defaultProps} onDrawStar={handleDrawStar} />);
+    fireEvent.click(screen.getByText('Draw Star'));
+    expect(handleDrawStar).toHaveBeenCalledOnce();
+  });
+
+  it('disables Draw Star button when isDrawingActive is true', () => {
+    render(<Toolbar {...defaultProps} isDrawingActive={true} />);
+    const btn = screen.getByText('Draw Star');
+    expect(btn).toBeDisabled();
+  });
+
+  it('enables Draw Star button when isDrawingActive is false', () => {
+    render(<Toolbar {...defaultProps} isDrawingActive={false} />);
+    const btn = screen.getByText('Draw Star');
+    expect(btn).not.toBeDisabled();
   });
 });

@@ -1,15 +1,22 @@
 import { useState, useCallback, useEffect } from 'react';
 import { StarsProvider } from '@/context/StarsContext';
 import { useStarsContext } from '@/hooks/useStarsContext';
+import { useDrawing } from '@/hooks/useDrawing';
+import { useRateLimit } from '@/hooks/useRateLimit';
 import { SkyCanvas } from './Sky/SkyCanvas';
 import { Toolbar } from './Toolbar/Toolbar';
+import { DrawingModal } from './DrawingModal/DrawingModal';
 import { LoadingOverlay } from './ui/LoadingOverlay';
+import { DrawingPhase } from '@/types/drawing';
 import { DEFAULT_COLOR } from '@/utils/constants';
+import type { Point } from '@/types/star';
 
 function AppInner() {
   const [color, setColor] = useState(DEFAULT_COLOR);
   const [error, setError] = useState<string | null>(null);
   const { isLoading } = useStarsContext();
+  const { state: drawing, startDrawing, confirmShape, cancel, place, submitSuccess, submitError } = useDrawing();
+  const { checkAndConsume } = useRateLimit();
 
   const handleError = useCallback((msg: string) => {
     setError(msg);
@@ -22,12 +29,58 @@ function AppInner() {
     return () => clearTimeout(timer);
   }, [error]);
 
+  const handleDrawStar = useCallback(() => {
+    if (!checkAndConsume()) {
+      setError('Please wait before drawing another star');
+      return;
+    }
+    startDrawing();
+  }, [checkAndConsume, startDrawing]);
+
+  const handleConfirmShape = useCallback((shape: Point[]) => {
+    confirmShape(shape);
+  }, [confirmShape]);
+
+  const handlePlace = useCallback((point: Point) => {
+    place(point);
+  }, [place]);
+
+  const handleSubmitError = useCallback((msg: string) => {
+    submitError(msg);
+    setError(msg);
+  }, [submitError]);
+
+  const isDrawingActive = drawing.phase !== DrawingPhase.Idle;
+
   if (isLoading) return <LoadingOverlay />;
 
   return (
     <>
-      <SkyCanvas color={color} onError={handleError} />
-      <Toolbar color={color} onColorChange={setColor} error={error} />
+      <SkyCanvas
+        color={color}
+        drawing={drawing}
+        onPlace={handlePlace}
+        onCancel={cancel}
+        onSubmitSuccess={submitSuccess}
+        onSubmitError={handleSubmitError}
+        onError={handleError}
+      />
+      <Toolbar
+        onDrawStar={handleDrawStar}
+        isDrawingActive={isDrawingActive}
+        error={error}
+      />
+      {drawing.phase === DrawingPhase.Drawing && (
+        <DrawingModal
+          color={color}
+          onColorChange={setColor}
+          onConfirm={handleConfirmShape}
+          onCancel={cancel}
+        />
+      )}
+      {drawing.phase === DrawingPhase.Placing && (
+        <div className="placement-hint">Tap the sky to place your star</div>
+      )}
     </>
   );
 }

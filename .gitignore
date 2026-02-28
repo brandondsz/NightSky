@@ -28,3 +28,4 @@ npm-debug.log*
 
 # TypeScript build info
 *.tsbuildinfo
+.claude/settings.local.json

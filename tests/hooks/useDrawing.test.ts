@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { drawingReducer, initialState } from '@/hooks/useDrawing';
 import { DrawingPhase } from '@/types/drawing';
-import type { DrawingAction } from '@/hooks/useDrawing';
 
 describe('drawingReducer', () => {
-  it('starts in Idle phase', () => {
+  it('starts in Idle phase with empty pendingShape and null placementPoint', () => {
     expect(initialState.phase).toBe(DrawingPhase.Idle);
     expect(initialState.currentPath).toEqual([]);
+    expect(initialState.pendingShape).toEqual([]);
+    expect(initialState.placementPoint).toBeNull();
     expect(initialState.error).toBeNull();
   });
 
@@ -14,6 +15,7 @@ describe('drawingReducer', () => {
     const state = drawingReducer(initialState, { type: 'START' });
     expect(state.phase).toBe(DrawingPhase.Drawing);
     expect(state.currentPath).toEqual([]);
+    expect(state.pendingShape).toEqual([]);
   });
 
   it('ignores START when not Idle', () => {
@@ -34,55 +36,63 @@ describe('drawingReducer', () => {
     expect(state.currentPath).toHaveLength(0);
   });
 
-  it('transitions Drawing -> Submitting on FINISH with enough points', () => {
-    const drawing = {
-      ...initialState,
-      phase: DrawingPhase.Drawing as const,
-      currentPath: [
-        { x: 0, y: 0 },
-        { x: 0.1, y: 0.1 },
-        { x: 0.2, y: 0.2 },
-        { x: 0.3, y: 0.3 },
-        { x: 0.4, y: 0.4 },
-      ],
-    };
-    const state = drawingReducer(drawing, { type: 'FINISH' });
-    expect(state.phase).toBe(DrawingPhase.Submitting);
+  it('transitions Drawing -> Placing on CONFIRM_SHAPE', () => {
+    const drawing = { ...initialState, phase: DrawingPhase.Drawing };
+    const shape = [{ x: 0, y: 0 }, { x: 0.1, y: 0.1 }];
+    const state = drawingReducer(drawing, { type: 'CONFIRM_SHAPE', shape });
+    expect(state.phase).toBe(DrawingPhase.Placing);
+    expect(state.pendingShape).toEqual(shape);
+    expect(state.currentPath).toEqual([]);
   });
 
-  it('resets to Idle on FINISH with too few points', () => {
-    const drawing = {
-      ...initialState,
-      phase: DrawingPhase.Drawing as const,
-      currentPath: [{ x: 0, y: 0 }, { x: 0.1, y: 0.1 }],
-    };
-    const state = drawingReducer(drawing, { type: 'FINISH' });
+  it('ignores CONFIRM_SHAPE when not Drawing', () => {
+    const shape = [{ x: 0, y: 0 }];
+    const state = drawingReducer(initialState, { type: 'CONFIRM_SHAPE', shape });
     expect(state.phase).toBe(DrawingPhase.Idle);
-    expect(state.currentPath).toEqual([]);
+  });
+
+  it('transitions Placing -> Submitting on PLACE', () => {
+    const placing = { ...initialState, phase: DrawingPhase.Placing, pendingShape: [{ x: 0, y: 0 }] };
+    const point = { x: 0.5, y: 0.5 };
+    const state = drawingReducer(placing, { type: 'PLACE', point });
+    expect(state.phase).toBe(DrawingPhase.Submitting);
+    expect(state.placementPoint).toEqual(point);
+  });
+
+  it('ignores PLACE when not Placing', () => {
+    const state = drawingReducer(initialState, { type: 'PLACE', point: { x: 0.5, y: 0.5 } });
+    expect(state.phase).toBe(DrawingPhase.Idle);
+  });
+
+  it('resets to Idle on CANCEL from any phase', () => {
+    const drawing = { ...initialState, phase: DrawingPhase.Drawing, currentPath: [{ x: 0, y: 0 }] };
+    expect(drawingReducer(drawing, { type: 'CANCEL' })).toEqual(initialState);
+
+    const placing = { ...initialState, phase: DrawingPhase.Placing, pendingShape: [{ x: 0, y: 0 }] };
+    expect(drawingReducer(placing, { type: 'CANCEL' })).toEqual(initialState);
   });
 
   it('resets on SUBMIT_SUCCESS', () => {
     const submitting = {
       ...initialState,
-      phase: DrawingPhase.Submitting as const,
-      currentPath: [{ x: 0, y: 0 }],
+      phase: DrawingPhase.Submitting,
+      pendingShape: [{ x: 0, y: 0 }],
+      placementPoint: { x: 0.5, y: 0.5 },
     };
     const state = drawingReducer(submitting, { type: 'SUBMIT_SUCCESS' });
     expect(state).toEqual(initialState);
   });
 
   it('resets with error on SUBMIT_ERROR', () => {
-    const submitting = { ...initialState, phase: DrawingPhase.Submitting as const };
+    const submitting = { ...initialState, phase: DrawingPhase.Submitting };
     const state = drawingReducer(submitting, { type: 'SUBMIT_ERROR', error: 'Rate limit' });
     expect(state.phase).toBe(DrawingPhase.Idle);
     expect(state.error).toBe('Rate limit');
   });
 
   it('resets on RESET', () => {
-    const state = drawingReducer(
-      { phase: DrawingPhase.Drawing, currentPath: [{ x: 0, y: 0 }], error: 'old' } as DrawingAction extends never ? never : { phase: DrawingPhase; currentPath: { x: number; y: number }[]; error: string },
-      { type: 'RESET' },
-    );
+    const placing = { ...initialState, phase: DrawingPhase.Placing, pendingShape: [{ x: 0, y: 0 }] };
+    const state = drawingReducer(placing, { type: 'RESET' });
     expect(state).toEqual(initialState);
   });
 });

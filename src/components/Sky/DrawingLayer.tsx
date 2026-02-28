@@ -1,25 +1,29 @@
 import { useRef, useEffect, useCallback } from 'react';
-import { useDrawing } from '@/hooks/useDrawing';
-import { useRateLimit } from '@/hooks/useRateLimit';
 import { useSession } from '@/hooks/useSession';
 import { useStarsContext } from '@/hooks/useStarsContext';
-import { drawStroke } from '@/utils/canvasRenderer';
-import { simplifyPath } from '@/utils/pathSimplify';
+import { drawStar } from '@/utils/canvasRenderer';
+import { offsetShapeToPlacement } from '@/utils/normalizeShape';
 import { DrawingPhase } from '@/types/drawing';
-import { SIMPLIFY_TOLERANCE, DEFAULT_STROKE_WIDTH } from '@/utils/constants';
-import type { StarInsert } from '@/types/star';
+import { DEFAULT_STROKE_WIDTH } from '@/utils/constants';
+import type { DrawingState } from '@/types/drawing';
+import type { Point, StarInsert } from '@/types/star';
 
 interface DrawingLayerProps {
   color: string;
+  drawing: DrawingState;
+  onPlace: (point: Point) => void;
+  onCancel: () => void;
+  onSubmitSuccess: () => void;
+  onSubmitError: (error: string) => void;
   onError: (msg: string) => void;
 }
 
-export function DrawingLayer({ color, onError }: DrawingLayerProps) {
+export function DrawingLayer({ color, drawing, onPlace, onCancel, onSubmitSuccess, onSubmitError, onError }: DrawingLayerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const mouseRef = useRef<Point>({ x: 0, y: 0 });
+  const rafRef = useRef<number>(0);
   const sessionId = useSession();
   const { addStar } = useStarsContext();
-  const { state, startDrawing, addPoint, finishDrawing, submitSuccess, submitError } = useDrawing();
-  const { checkAndConsume } = useRateLimit();
 
   // Resize canvas to fill viewport
   useEffect(() => {
@@ -36,64 +40,80 @@ export function DrawingLayer({ color, onError }: DrawingLayerProps) {
     return () => window.removeEventListener('resize', resize);
   }, []);
 
-  // Render in-progress stroke
+  // Placing phase: render shape preview following cursor
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    if (state.phase === DrawingPhase.Drawing) {
-      drawStroke(ctx, state.currentPath, color, DEFAULT_STROKE_WIDTH, canvas.width, canvas.height);
-    } else {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (drawing.phase !== DrawingPhase.Placing) {
+      // Clear canvas when not placing
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext('2d');
+        if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+      return;
     }
-  }, [state.currentPath, state.phase, color]);
+
+    function renderPreview() {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const placed = offsetShapeToPlacement(drawing.pendingShape, mouseRef.current);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawStar(ctx, placed, color, DEFAULT_STROKE_WIDTH, canvas.width, canvas.height);
+      rafRef.current = requestAnimationFrame(renderPreview);
+    }
+
+    rafRef.current = requestAnimationFrame(renderPreview);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [drawing.phase, drawing.pendingShape, color]);
 
   // Submit star when entering Submitting phase
   useEffect(() => {
-    if (state.phase !== DrawingPhase.Submitting) return;
+    if (drawing.phase !== DrawingPhase.Submitting || !drawing.placementPoint) return;
 
-    const simplified = simplifyPath(state.currentPath, SIMPLIFY_TOLERANCE / Math.max(window.innerWidth, 1));
+    const placed = offsetShapeToPlacement(drawing.pendingShape, drawing.placementPoint);
 
     const star: StarInsert = {
-      path_data: simplified,
+      path_data: placed,
       color,
       stroke_width: DEFAULT_STROKE_WIDTH,
       session_id: sessionId,
     };
 
     addStar(star)
-      .then(() => submitSuccess())
+      .then(() => onSubmitSuccess())
       .catch((err) => {
         const msg = err?.message ?? 'Failed to save star';
-        submitError(msg);
+        onSubmitError(msg);
         onError(msg);
       });
-  }, [state.phase]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [drawing.phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handlePointerDown = useCallback((e: React.PointerEvent) => {
-    if (state.phase !== DrawingPhase.Idle) return;
+  // Handle Escape key during placing phase
+  useEffect(() => {
+    if (drawing.phase !== DrawingPhase.Placing) return;
 
-    if (!checkAndConsume()) {
-      onError('Please wait before drawing another star');
-      return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        onCancel();
+      }
     }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [drawing.phase, onCancel]);
 
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    startDrawing();
-    addPoint({ x: e.clientX / window.innerWidth, y: e.clientY / window.innerHeight });
-  }, [state.phase, checkAndConsume, onError, startDrawing, addPoint]);
+  const handleMouseMove = useCallback((e: React.PointerEvent) => {
+    mouseRef.current = { x: e.clientX / window.innerWidth, y: e.clientY / window.innerHeight };
+  }, []);
 
-  const handlePointerMove = useCallback((e: React.PointerEvent) => {
-    if (state.phase !== DrawingPhase.Drawing) return;
-    addPoint({ x: e.clientX / window.innerWidth, y: e.clientY / window.innerHeight });
-  }, [state.phase, addPoint]);
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    if (drawing.phase !== DrawingPhase.Placing) return;
+    const point = { x: e.clientX / window.innerWidth, y: e.clientY / window.innerHeight };
+    onPlace(point);
+  }, [drawing.phase, onPlace]);
 
-  const handlePointerUp = useCallback(() => {
-    if (state.phase !== DrawingPhase.Drawing) return;
-    finishDrawing();
-  }, [state.phase, finishDrawing]);
+  const isPlacing = drawing.phase === DrawingPhase.Placing;
 
   return (
     <canvas
@@ -105,13 +125,12 @@ export function DrawingLayer({ color, onError }: DrawingLayerProps) {
         width: '100%',
         height: '100%',
         zIndex: 2,
-        cursor: 'crosshair',
+        cursor: isPlacing ? 'crosshair' : 'default',
         touchAction: 'none',
+        pointerEvents: isPlacing ? 'auto' : 'none',
       }}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
+      onPointerMove={handleMouseMove}
+      onClick={handleClick}
     />
   );
 }

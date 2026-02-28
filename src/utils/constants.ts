@@ -5,3 +5,5 @@ export const SIMPLIFY_TOLERANCE = 1.5;
 export const DEFAULT_COLOR = '#FFFFFF';
 export const DEFAULT_STROKE_WIDTH = 2.0;
 export const SESSION_KEY = 'nightsky_session_id';
+export const MODAL_CANVAS_SIZE = 150;
+export const STAR_SKY_SCALE = 0.075;
