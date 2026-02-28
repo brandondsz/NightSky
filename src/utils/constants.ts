@@ -1,4 +1,4 @@
-export const MAX_STARS = 200;
+export const MAX_STARS = 10;
 export const COOLDOWN_MS = 2000;
 export const MIN_POINTS = 5;
 export const SIMPLIFY_TOLERANCE = 1.5;
