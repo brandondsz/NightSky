@@ -11,9 +11,12 @@ export function drawStar(
   strokeWidth: number,
   width: number,
   height: number,
+  opacity = 1,
 ): void {
   if (pathData.length < 2) return;
 
+  ctx.save();
+  ctx.globalAlpha = opacity;
   ctx.beginPath();
   ctx.strokeStyle = color;
   ctx.lineWidth = strokeWidth;
@@ -28,21 +31,25 @@ export function drawStar(
   }
 
   ctx.stroke();
+  ctx.restore();
 }
 
 /**
- * Clear canvas and draw all stars.
+ * Clear canvas and draw all stars with per-star opacity for twinkle effect.
  */
 export function drawAllStars(
   ctx: CanvasRenderingContext2D,
   stars: Star[],
   width: number,
   height: number,
+  opacities?: number[],
 ): void {
   ctx.clearRect(0, 0, width, height);
 
-  for (const star of stars) {
-    drawStar(ctx, star.path_data, star.color, star.stroke_width, width, height);
+  for (let i = 0; i < stars.length; i++) {
+    const star = stars[i];
+    const opacity = opacities ? opacities[i] : 1;
+    drawStar(ctx, star.path_data, star.color, star.stroke_width, width, height, opacity);
   }
 }
 
