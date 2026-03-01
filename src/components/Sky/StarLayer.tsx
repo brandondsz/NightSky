@@ -53,9 +53,10 @@ export function StarLayer() {
       const t = time / 1000; // seconds
       const phases = phasesRef.current;
       const opacities = stars.map((_, i) => {
-        // Oscillate between 0.5 and 1.0
+        // Oscillate between 0.15 and 1.0 with faster, varied speeds
         const phase = phases[i] ?? 0;
-        return 0.75 + 0.25 * Math.sin(t * 1.5 + phase);
+        const speed = 2.5 + Math.sin(phase) * 1.2;
+        return 0.575 + 0.425 * Math.sin(t * speed + phase);
       });
       drawAllStars(ctx!, stars, canvas!.width, canvas!.height, opacities);
       rafRef.current = requestAnimationFrame(animate);
