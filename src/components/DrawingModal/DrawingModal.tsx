@@ -1,7 +1,8 @@
-import { useRef, useCallback, useEffect } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { drawStroke } from '@/utils/canvasRenderer';
 import { simplifyPath } from '@/utils/pathSimplify';
 import { normalizeShapeForPlacement } from '@/utils/normalizeShape';
+import { validateStarShape } from '@/utils/validateStarShape';
 import { MODAL_CANVAS_SIZE, SIMPLIFY_TOLERANCE, MIN_POINTS, DEFAULT_STROKE_WIDTH } from '@/utils/constants';
 import type { Point } from '@/types/star';
 
@@ -18,6 +19,7 @@ export function DrawingModal({ color, onColorChange, onConfirm, onCancel }: Draw
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const pointsRef = useRef<Point[]>([]);
   const isDrawingRef = useRef(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   const redraw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -33,6 +35,7 @@ export function DrawingModal({ color, onColorChange, onConfirm, onCancel }: Draw
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
     isDrawingRef.current = true;
     pointsRef.current = [];
+    setValidationError(null);
     const rect = canvas.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width;
     const y = (e.clientY - rect.top) / rect.height;
@@ -58,6 +61,11 @@ export function DrawingModal({ color, onColorChange, onConfirm, onCancel }: Draw
   const handleConfirm = useCallback(() => {
     const points = pointsRef.current;
     if (points.length < MIN_POINTS) return;
+    const validation = validateStarShape(points);
+    if (!validation.valid) {
+      setValidationError(validation.message);
+      return;
+    }
     const tolerance = SIMPLIFY_TOLERANCE / MODAL_CANVAS_SIZE;
     const simplified = simplifyPath(points, tolerance);
     const normalized = normalizeShapeForPlacement(simplified);
@@ -78,7 +86,7 @@ export function DrawingModal({ color, onColorChange, onConfirm, onCancel }: Draw
   return (
     <div className="modal-overlay" onClick={onCancel}>
       <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
-        <h3 className="modal-title">Draw your star</h3>
+        <h3 className="modal-title">Sketch a Star That Belongs to Everyone</h3>
         <div className="modal-color-picker">
           {COLORS.map((c) => (
             <button
@@ -101,6 +109,9 @@ export function DrawingModal({ color, onColorChange, onConfirm, onCancel }: Draw
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
         />
+        {validationError && (
+          <p className="modal-validation-error">{validationError}</p>
+        )}
         <div className="modal-buttons">
           <button className="modal-btn modal-btn-cancel" onClick={onCancel}>
             Cancel

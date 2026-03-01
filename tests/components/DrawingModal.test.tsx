@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { DrawingModal } from '@/components/DrawingModal/DrawingModal';
+import * as validateModule from '@/utils/validateStarShape';
 
 // Mock canvas context
 const mockCtx = {
@@ -17,6 +18,10 @@ const mockCtx = {
 
 HTMLCanvasElement.prototype.getContext = vi.fn().mockReturnValue(mockCtx) as unknown as typeof HTMLCanvasElement.prototype.getContext;
 
+// Mock setPointerCapture (not available in jsdom)
+Element.prototype.setPointerCapture = vi.fn();
+Element.prototype.releasePointerCapture = vi.fn();
+
 describe('DrawingModal', () => {
   const defaultProps = {
     color: '#FFFFFF',
@@ -27,7 +32,7 @@ describe('DrawingModal', () => {
 
   it('renders modal with title, canvas, color picker, and buttons', () => {
     render(<DrawingModal {...defaultProps} />);
-    expect(screen.getByText('Draw your star')).toBeInTheDocument();
+    expect(screen.getByText('Sketch a Star That Belongs to Everyone')).toBeInTheDocument();
     expect(screen.getByText('Cancel')).toBeInTheDocument();
     expect(screen.getByText('Confirm')).toBeInTheDocument();
     expect(document.querySelector('canvas')).toBeTruthy();
@@ -87,5 +92,58 @@ describe('DrawingModal', () => {
     fireEvent.click(screen.getByText('Confirm'));
     // Should not confirm since fewer than MIN_POINTS were drawn
     expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  it('shows validation error when shape is invalid', () => {
+    vi.spyOn(validateModule, 'validateStarShape').mockReturnValue({
+      valid: false,
+      message: 'Try drawing a pointy star shape with multiple tips.',
+    });
+
+    const onConfirm = vi.fn();
+    render(<DrawingModal {...defaultProps} onConfirm={onConfirm} />);
+
+    const canvas = document.querySelector('canvas')!;
+
+    // Simulate drawing enough points to pass MIN_POINTS check
+    fireEvent.pointerDown(canvas, { clientX: 50, clientY: 50 });
+    for (let i = 0; i < 10; i++) {
+      fireEvent.pointerMove(canvas, { clientX: 50 + i * 5, clientY: 50 });
+    }
+    fireEvent.pointerUp(canvas);
+
+    fireEvent.click(screen.getByText('Confirm'));
+
+    expect(screen.getByText('Try drawing a pointy star shape with multiple tips.')).toBeInTheDocument();
+    expect(onConfirm).not.toHaveBeenCalled();
+
+    vi.restoreAllMocks();
+  });
+
+  it('clears validation error when starting a new drawing', () => {
+    vi.spyOn(validateModule, 'validateStarShape').mockReturnValue({
+      valid: false,
+      message: 'Try drawing a pointy star shape with multiple tips.',
+    });
+
+    render(<DrawingModal {...defaultProps} />);
+
+    const canvas = document.querySelector('canvas')!;
+
+    // Draw and confirm to trigger error
+    fireEvent.pointerDown(canvas, { clientX: 50, clientY: 50 });
+    for (let i = 0; i < 10; i++) {
+      fireEvent.pointerMove(canvas, { clientX: 50 + i * 5, clientY: 50 });
+    }
+    fireEvent.pointerUp(canvas);
+    fireEvent.click(screen.getByText('Confirm'));
+
+    expect(screen.getByText('Try drawing a pointy star shape with multiple tips.')).toBeInTheDocument();
+
+    // Start a new drawing — error should clear
+    fireEvent.pointerDown(canvas, { clientX: 100, clientY: 100 });
+    expect(screen.queryByText('Try drawing a pointy star shape with multiple tips.')).not.toBeInTheDocument();
+
+    vi.restoreAllMocks();
   });
 });

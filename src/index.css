@@ -20,6 +20,49 @@ body {
   color: #e0e0e0;
 }
 
+/* Sky Header */
+.sky-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 24px 0;
+  pointer-events: none;
+  z-index: 5;
+  animation: header-drift-in 1.2s ease-out both;
+}
+
+.sky-header-title {
+  font-size: 28px;
+  font-weight: 300;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.12);
+  margin-bottom: 10px;
+}
+
+.sky-header-sub {
+  font-size: 14px;
+  font-weight: 300;
+  font-style: italic;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+@keyframes header-drift-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Toolbar */
 .toolbar {
   position: fixed;
@@ -229,6 +272,13 @@ body {
   background: rgba(78, 205, 196, 0.3);
 }
 
+.modal-validation-error {
+  font-size: 13px;
+  color: #ff6b6b;
+  text-align: center;
+  animation: fade-in 0.2s ease-out;
+}
+
 /* Placement Hint */
 .placement-hint {
   position: fixed;
@@ -249,6 +299,18 @@ body {
 
 /* Mobile responsive */
 @media (max-width: 480px) {
+  .sky-header {
+    padding: 32px 16px 0;
+  }
+
+  .sky-header-title {
+    font-size: 22px;
+  }
+
+  .sky-header-sub {
+    font-size: 12px;
+  }
+
   .toolbar {
     padding: 10px 12px;
   }

@@ -65,6 +65,12 @@ function AppInner() {
         onSubmitError={handleSubmitError}
         onError={handleError}
       />
+      {drawing.phase === DrawingPhase.Idle && (
+        <header className="sky-header">
+          <h1 className="sky-header-title">NightSky</h1>
+          <p className="sky-header-sub">every star was drawn by a stranger - leave yours</p>
+        </header>
+      )}
       <Toolbar
         onDrawStar={handleDrawStar}
         isDrawingActive={isDrawingActive}
