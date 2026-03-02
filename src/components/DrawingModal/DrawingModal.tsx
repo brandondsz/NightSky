@@ -58,6 +58,16 @@ export function DrawingModal({ color, onColorChange, onConfirm, onCancel }: Draw
     isDrawingRef.current = false;
   }, []);
 
+  const handleClear = useCallback(() => {
+    pointsRef.current = [];
+    setValidationError(null);
+    const canvas = canvasRef.current;
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  }, []);
+
   const handleConfirm = useCallback(() => {
     const points = pointsRef.current;
     if (points.length < MIN_POINTS) return;
@@ -115,6 +125,9 @@ export function DrawingModal({ color, onColorChange, onConfirm, onCancel }: Draw
         <div className="modal-buttons">
           <button className="modal-btn modal-btn-cancel" onClick={onCancel}>
             Cancel
+          </button>
+          <button className="modal-btn modal-btn-clear" onClick={handleClear}>
+            Clear
           </button>
           <button className="modal-btn modal-btn-confirm" onClick={handleConfirm}>
             Confirm

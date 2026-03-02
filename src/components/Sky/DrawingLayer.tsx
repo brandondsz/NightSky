@@ -124,7 +124,7 @@ export function DrawingLayer({ color, drawing, onPlace, onCancel, onSubmitSucces
         left: 0,
         width: '100%',
         height: '100%',
-        zIndex: 2,
+        zIndex: 4,
         cursor: isPlacing ? 'crosshair' : 'default',
         touchAction: 'none',
         pointerEvents: isPlacing ? 'auto' : 'none',

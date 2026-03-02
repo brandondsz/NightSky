@@ -120,6 +120,43 @@ describe('DrawingModal', () => {
     vi.restoreAllMocks();
   });
 
+  it('renders Clear button between Cancel and Confirm', () => {
+    render(<DrawingModal {...defaultProps} />);
+    const clearBtn = screen.getByText('Clear');
+    expect(clearBtn).toBeInTheDocument();
+
+    // Verify button order: Cancel, Clear, Confirm
+    const buttons = document.querySelectorAll('.modal-btn');
+    expect(buttons[0].textContent).toBe('Cancel');
+    expect(buttons[1].textContent).toBe('Clear');
+    expect(buttons[2].textContent).toBe('Confirm');
+  });
+
+  it('clears validation error when Clear is clicked', () => {
+    vi.spyOn(validateModule, 'validateStarShape').mockReturnValue({
+      valid: false,
+      message: 'Try drawing a pointy star shape with multiple tips.',
+    });
+
+    render(<DrawingModal {...defaultProps} />);
+    const canvas = document.querySelector('canvas')!;
+
+    // Draw and confirm to trigger error
+    fireEvent.pointerDown(canvas, { clientX: 50, clientY: 50 });
+    for (let i = 0; i < 10; i++) {
+      fireEvent.pointerMove(canvas, { clientX: 50 + i * 5, clientY: 50 });
+    }
+    fireEvent.pointerUp(canvas);
+    fireEvent.click(screen.getByText('Confirm'));
+    expect(screen.getByText('Try drawing a pointy star shape with multiple tips.')).toBeInTheDocument();
+
+    // Click Clear — error should disappear
+    fireEvent.click(screen.getByText('Clear'));
+    expect(screen.queryByText('Try drawing a pointy star shape with multiple tips.')).not.toBeInTheDocument();
+
+    vi.restoreAllMocks();
+  });
+
   it('clears validation error when starting a new drawing', () => {
     vi.spyOn(validateModule, 'validateStarShape').mockReturnValue({
       valid: false,

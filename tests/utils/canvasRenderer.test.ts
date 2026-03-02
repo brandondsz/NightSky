@@ -16,6 +16,8 @@ function createMockContext() {
     lineWidth: 0,
     lineCap: 'butt' as CanvasLineCap,
     lineJoin: 'miter' as CanvasLineJoin,
+    shadowColor: '',
+    shadowBlur: 0,
   } as unknown as CanvasRenderingContext2D;
 }
 
@@ -46,6 +48,26 @@ describe('drawStar', () => {
     expect(ctx.stroke).toHaveBeenCalled();
     expect(ctx.strokeStyle).toBe('#FF0000');
     expect(ctx.lineWidth).toBe(3);
+  });
+
+  it('applies glow effect by default', () => {
+    const path: Point[] = [
+      { x: 0, y: 0 },
+      { x: 1, y: 1 },
+    ];
+    drawStar(ctx, path, '#FFD700', 2, 800, 600);
+    expect(ctx.shadowColor).toBe('#FFD700');
+    expect(ctx.shadowBlur).toBe(12);
+  });
+
+  it('skips glow when glow=false', () => {
+    const path: Point[] = [
+      { x: 0, y: 0 },
+      { x: 1, y: 1 },
+    ];
+    drawStar(ctx, path, '#FFD700', 2, 800, 600, 1, false);
+    expect(ctx.shadowColor).toBe('');
+    expect(ctx.shadowBlur).toBe(0);
   });
 });
 

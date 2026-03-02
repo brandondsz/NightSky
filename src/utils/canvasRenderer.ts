@@ -12,11 +12,18 @@ export function drawStar(
   width: number,
   height: number,
   opacity = 1,
+  glow = true,
 ): void {
   if (pathData.length < 2) return;
 
   ctx.save();
   ctx.globalAlpha = opacity;
+
+  if (glow) {
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 12;
+  }
+
   ctx.beginPath();
   ctx.strokeStyle = color;
   ctx.lineWidth = strokeWidth;

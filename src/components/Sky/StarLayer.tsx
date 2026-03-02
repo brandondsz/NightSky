@@ -2,6 +2,8 @@ import { useRef, useEffect } from 'react';
 import { useStarsContext } from '@/hooks/useStarsContext';
 import { drawAllStars } from '@/utils/canvasRenderer';
 
+const FADE_IN_DURATION = 1; // seconds
+
 /** Each star gets a random phase offset so they don't all pulse in sync. */
 function buildPhaseOffsets(count: number): number[] {
   const offsets: number[] = [];
@@ -15,15 +17,26 @@ export function StarLayer() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { stars } = useStarsContext();
   const phasesRef = useRef<number[]>([]);
+  const birthTimesRef = useRef<number[]>([]);
   const rafRef = useRef(0);
 
-  // Keep phase offsets in sync with star count (append new, trim old)
+  // Keep phase offsets and birth times in sync with star count
   useEffect(() => {
-    const current = phasesRef.current;
-    if (current.length < stars.length) {
-      phasesRef.current = [...current, ...buildPhaseOffsets(stars.length - current.length)];
-    } else if (current.length > stars.length) {
-      phasesRef.current = current.slice(0, stars.length);
+    const currentPhases = phasesRef.current;
+    const currentBirths = birthTimesRef.current;
+    const now = performance.now() / 1000;
+
+    if (currentPhases.length < stars.length) {
+      const newCount = stars.length - currentPhases.length;
+      phasesRef.current = [...currentPhases, ...buildPhaseOffsets(newCount)];
+      // On initial load (no existing phases), set birthTime=0 (instant, no fade)
+      // On realtime insert, set birthTime to now
+      const birthTime = currentPhases.length === 0 ? 0 : now;
+      const newBirths = new Array(newCount).fill(birthTime);
+      birthTimesRef.current = [...currentBirths, ...newBirths];
+    } else if (currentPhases.length > stars.length) {
+      phasesRef.current = currentPhases.slice(0, stars.length);
+      birthTimesRef.current = currentBirths.slice(0, stars.length);
     }
   }, [stars.length]);
 
@@ -52,11 +65,17 @@ export function StarLayer() {
     function animate(time: number) {
       const t = time / 1000; // seconds
       const phases = phasesRef.current;
+      const births = birthTimesRef.current;
       const opacities = stars.map((_, i) => {
         // Oscillate between 0.15 and 1.0 with faster, varied speeds
         const phase = phases[i] ?? 0;
         const speed = 2.5 + Math.sin(phase) * 1.2;
-        return 0.575 + 0.425 * Math.sin(t * speed + phase);
+        const twinkle = 0.575 + 0.425 * Math.sin(t * speed + phase);
+        // Fade-in: birthTime=0 means instant (age is huge), otherwise fade over FADE_IN_DURATION
+        const birthTime = births[i] ?? 0;
+        const age = birthTime === 0 ? FADE_IN_DURATION : t - birthTime;
+        const fadeIn = Math.min(1, Math.max(0, age / FADE_IN_DURATION));
+        return twinkle * fadeIn;
       });
       drawAllStars(ctx!, stars, canvas!.width, canvas!.height, opacities);
       rafRef.current = requestAnimationFrame(animate);
